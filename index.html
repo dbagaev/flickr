@@ -1,0 +1,424 @@
+<html>
+
+<head>
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/2.2.4/jquery.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/knockout/3.4.2/knockout-min.js"></script>
+    <script src="/flickr/assets/js/js.cookie.js"></script>
+    <script src="/flickr/assets/js/flickr.js"></script>
+<style>
+* {
+    font-family: Arial;
+    font-size: 13px;
+}
+#PhotoList
+{
+    white-space: nowrap;
+    position: relative;
+}
+
+#PhotoList img
+{
+    display: inline-block;
+    position: relative;
+    padding: 1px;
+    margin: 2px;
+}
+
+#PhotoList img.selected
+{
+    display: inline-block;
+    position: relative;
+    padding: 1px;
+    margin: 0px;
+    border: 2px solid blue;
+}
+</style>
+
+</head>
+
+<body>
+
+<div class="flickr-helper-dialog">
+    <form id="flickrApiForm">
+        <div>
+            Api key: <input data-bind="value: apiKey" size=32 id="flickrApiKey"/>
+            User ID: <input data-bind="value: userId" id="flickrUserId"/>
+            <button type="submit">Set</button>
+        </div>
+    </form>
+    <hr>
+    <div>
+    Photoset: <select data-bind="options: photosets, optionsText: 'title', value: selectedPhotoset">
+    </select>
+    </div>
+
+    <div style="width: 100%; overflow-x: scroll" id="PhotoList" data-bind="foreach: photos, event: { scroll: onImagesScroll }">
+    <img data-bind="attr: { src: url_t, f_id: id }, click: $parent.onImageClick">
+    </div>
+
+    <p>Size: <select data-bind="options: sizes, optionsText: 'labelEx', value: selectedSize">
+    </select></p>
+
+    <p>Align:
+      <input type="radio" name="align" value="" data-bind="checked: align"> None
+      <input type="radio" name="align" value="left" data-bind="checked: align"> Left
+      <input type="radio" name="align" value="center" data-bind="checked: align"> Center
+      <input type="radio" name="align" value="right" data-bind="checked: align"> Right
+    </p>
+
+    <p>Code preview: <input size="60" data-bind="value: imageCode"></p>
+
+
+    <div data-bind="foreach: sizes" >
+        <div style="padding: 2px 8px" >
+            <div style="min-width: 160px; display: inline-block" data-bind="text: labelEx"></div>
+            <input style="width:440px" data-bind="value: url" readonly />
+            <button style="display: inline-block" class="copy-url">copy
+                <textarea style="width: 0px; height: 0px; margin: 0px; padding: 0px; border: none; resize: none" data-bind="text: url"></textarea>
+            </button>
+        </div>
+    </div>
+
+</div>
+
+</body>
+
+<script type="text/javascript">
+
+// var $;
+
+Flickr = function(apiKey, userId) {
+    this.apiKey = apiKey;
+    this.userId = userId;
+}
+
+Flickr.prototype = {
+    getPhotosets: function(handle) {
+        var me = this;
+        this._ajax({
+            data: {
+                method: "flickr.photosets.getList"
+            },
+            success: function(data) {
+                if(data.stat == "fail")
+                {
+                    alert("Flickr error: " + data.message);
+                    return;
+                }
+
+                for(i = 0; i<data.photosets.photoset.length; ++i)
+                {
+                    var photoset = new Flickr.Photoset(me, data.photosets.photoset[i]);
+                    handle(photoset);
+                }
+
+            },
+            error: function() { alert("Fail..."); },
+        });
+    },
+
+    urls: {
+        lookupUser: function(url, handler) {
+            this.__proto__._ajax({
+                data: {
+                    method: 'flickr.urls.lookupUser',
+                    url: url,
+                },
+                success: function(data) {
+                    if(data.stat == "fail")
+                    {
+                        alert("Flickr error: " + data.message);
+                        return;
+                    }
+
+                    handler(data.user);
+                }
+            });
+        },
+    },
+
+    _ajax: function(cfg) {
+        cfg.url = "https://api.flickr.com/services/rest/";
+        cfg.data.api_key = this.apiKey;
+        cfg.data.user_id = this.userId;
+        cfg.data.format = "json";
+        cfg.data.nojsoncallback = 1;
+        cfg.type = "post";
+        cfg.dataType = "json";
+
+        jQuery.ajax(cfg);
+    }
+
+
+}
+
+Flickr.Photoset = function(api, data)
+{
+    this.api = api;
+    this.id = data.id;
+
+    this.title = data.title._content;
+    this.description = data.description._content;
+}
+
+Flickr.Photoset.prototype = {
+
+    getPhotos: function(handler) {
+        var me = this;
+            this.api._ajax({
+                data: {
+                    method: "flickr.photosets.getPhotos",
+                    photoset_id: me.id,
+                    extras: 'url_t',
+                },
+                success: function(data) {
+                    if(data.stat == "fail")
+                    {
+                        alert("Flickr error: " + data.message);
+                        return;
+                    }
+
+                    for(i = 0; i<data.photoset.photo.length; ++i)
+                    {
+                        var photo = new Flickr.Photo(me.api, data.photoset.photo[i]);
+                        handler(photo);
+                    }
+
+                },
+                error: function() { alert("Fail..."); },
+            });
+
+      //  }
+    },
+
+}
+
+Flickr.Photo = function(api, data)
+{
+    this.api = api;
+    this.id = data.id;
+
+    this.url_t = data.url_t;
+    //this.title = data.title._content;
+    //this.description = data.description._content;
+}
+
+Flickr.Photo.prototype = {
+        getSizes: function(handler) {
+            me = this;
+            this.api._ajax({
+                data: {
+                    method: "flickr.photos.getSizes",
+                    photo_id: me.id,
+                },
+                success: function(data) {
+                    if(data.stat == "fail")
+                    {
+                        alert("Flickr error: " + data.message);
+                        return;
+                    }
+
+                    handler(data.sizes.size);
+                },
+                error: function() { alert("Fail..."); },
+            });
+
+
+        //}
+    },
+
+};
+</script>
+
+<script type="text/javascript">
+
+var DemoForm = function () {
+    var me = this;
+
+    this.apiKey = ko.observable();
+    this.userId = ko.observable();
+    this.userProfile = ko.observable();
+
+    this.photosets = ko.observableArray();
+    this.selectedPhotoset = ko.observable();
+    this.selectedPhotoset.subscribe(function(newValue) { me.updatePhotos(); });
+
+    this.photos = ko.observableArray();
+
+    this.selectedImage = null;
+
+    this.sizes = ko.observableArray();
+    this.selectedSize = ko.observable();
+    this.selectedSize.subscribe(function(newValue) { if(!me.updatingSizes && newValue) me.lastSelectedSize = newValue.label; });
+    this.lastSelectedSize = null;
+    this.updatingSizes = false;
+
+    this.align = ko.observable('');
+
+    this.imageCode = ko.computed(function() {
+        if(me.selectedSize() == null/* || me.selectedImage == null*/)
+            return '';
+
+        var result = '<img src="' + me.selectedSize().source + '"';
+        if(me.align() != '')
+            result += ' align="' + me.align() + '"';
+
+        result += '>';
+
+        return result;
+    });
+
+    this.onUpdate = function() {
+        this.flickr.apiKey = this.apiKey();
+        this.flickr.userId = this.userId();
+        this.photosets.removeAll();
+        this.flickr.getPhotosets(function(item) { me.photosets.push(item); });
+    };
+
+    this.updatePhotos = function()
+    {
+        me.photos.removeAll();
+        me.selectedPhotoset().getPhotos(function(photo) {
+            me.photos.push(photo);
+        });
+    }
+
+    this.onGetUserId = function() {
+        this.flickr.urls.lookupUser( "http://www.flickr.com/photos/" + this.userProfile() + '/', function(user) {
+            me.userId(user.id);
+        });
+    };
+
+    this.reload = function() {
+        if(me.photosets().length == 0)
+            me.onUpdate();
+
+        var $image_list = jQuery('#PhotoList');
+        var $selected_img = $image_list.find('.selected');
+
+        var scrollToSelectedImage = function()
+        {
+            var offset = 0;
+            var $parent = $selected_img;
+            while(!$parent.is("#PhotoList"))
+            {
+                $p = $parent.parent();
+                offset += $parent.position().left;
+                $parent = $p;
+            }
+
+            offset = offset + ($selected_img.width() - $image_list.width()) / 2;
+
+            $image_list.scrollLeft($image_list.scrollLeft() + offset);
+
+        }
+
+        var checkImagesLoaded = function()
+        {
+            var loaded = true;
+            $image_list.find('img').each(function() {
+                if(!this.complete)
+                {
+                    loaded = false;
+                    return false;
+                }
+            });
+            return loaded;
+        }
+
+        $image_list.scrollLeft(me.ScrollPositionLeft);
+
+        if($selected_img.length == 1)
+        {
+            setTimeout(function() { if(checkImagesLoaded) scrollToSelectedImage(); }, 200);
+        }
+    };
+
+    this.ScrollPositionLeft = 0;
+    this.onImagesScroll = function(data, event) {
+        var $image_list = jQuery('#PhotoList');
+        me.ScrollPositionLeft = $image_list.scrollLeft();
+    }
+
+    this.onImageClick = function(data, event) {
+        me.updatingSizes = true;
+        me.sizes.removeAll();
+        me.selectedImage = this;
+
+        var $img = jQuery(event.target);
+        var id = jQuery(event.target).attr('f_id');
+
+        $img.parents('#PhotoList').find('img').removeClass('selected');
+        $img.addClass('selected');
+
+        var photo = null;
+        for(i = 0; i<me.photos().length; i++)
+        {
+            if(me.photos()[i].id == id)
+            {
+                photo = me.photos()[i];
+                break;
+            }
+        }
+        if(photo == null)
+            return;
+
+        photo.getSizes(function(sizes) {
+            for(i = 0; i<sizes.length; ++i)
+            {
+                var size = sizes[i];
+                size.labelEx = size.label + ' [' + size.width + 'x' + size.height + ']';
+                size.url = size.source;
+                me.sizes.push(size);
+                if(size.label == me.lastSelectedSize)
+                    me.selectedSize(size);
+            }
+            me.updatingSizes = false;
+        });
+    };
+
+    this.onInsert = function(data, e) {
+        var win = window.dialogArguments || opener || parent || top;
+        if (win['send_to_editor']) win.send_to_editor(me.imageCode());
+        else {
+            alert('Something is wrong with editor...');
+            tb_remove();
+        }
+
+        jQuery('#TB_window').fadeOut();
+        e.preventDefault();
+    };
+
+    this.flickr = new Flickr();
+};
+
+jQuery(document).ready(function() {
+    var form = new DemoForm();
+
+    form.apiKey(Cookies.get('flickr.ApiKey'));
+    form.userId(Cookies.get('flickr.userId'));
+
+    ko.applyBindings(form);
+
+    jQuery('#flickrApiForm').on('submit', function() {
+        // form.reload();
+        Cookies.set('flickr.ApiKey', form.apiKey(), { expires: 1024 });
+        Cookies.set('flickr.userId', form.userId(), { expires: 1024 });
+    });
+
+    form.reload();
+});
+
+jQuery(document).on('click', '.copy-url', function() {
+    var input = jQuery(this).find('textarea');
+    input.focus();
+    input.select();
+    document.execCommand('copy');
+});
+
+
+//});
+
+</script>
+
+</html>
