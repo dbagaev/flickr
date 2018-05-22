@@ -64,13 +64,24 @@
       <input type="radio" name="align" value="left" data-bind="checked: align"> Left
       <input type="radio" name="align" value="center" data-bind="checked: align"> Center
       <input type="radio" name="align" value="right" data-bind="checked: align"> Right
+      ==> {align}
     </p>
 
-    <p>Code preview: <input size="60" data-bind="value: imageCode"></p>
+    <p>Code template: 
+        <input size="60" data-bind="value: codeTemplate, valueUpdate: 'keyup'">
+    </p>
+
+    <p>Code preview: 
+        <input size="60" data-bind="value: imageCode">
+        <button style="display: inline-block" class="copy-url">copy
+            <textarea style="width: 0px; height: 0px; margin: 0px; padding: 0px; border: none; resize: none"></textarea>
+        </button>
+    </p>
 
 
     <div data-bind="foreach: sizes" >
-        <div style="padding: 2px 8px" >
+        <div style="padding: 2px 8px" >            
+            <div style="min-width: 24px; display: inline-block">{<span data-bind="text: code"></span>}</div>
             <div style="min-width: 160px; display: inline-block" data-bind="text: labelEx"></div>
             <input style="width:440px" data-bind="value: url" readonly />
             <button style="display: inline-block" class="copy-url">copy
@@ -247,6 +258,8 @@ var DemoForm = function () {
 
     this.selectedImage = null;
 
+    this.codeTemplate = ko.observable();
+
     this.sizes = ko.observableArray();
     this.selectedSize = ko.observable();
     this.selectedSize.subscribe(function(newValue) { if(!me.updatingSizes && newValue) me.lastSelectedSize = newValue.label; });
@@ -256,16 +269,34 @@ var DemoForm = function () {
     this.align = ko.observable('');
 
     this.imageCode = ko.computed(function() {
-        if(me.selectedSize() == null/* || me.selectedImage == null*/)
-            return '';
+        if(typeof(me.codeTemplate()) !== 'string' || me.codeTemplate().length == 0) {
+            if(me.selectedSize() == null/* || me.selectedImage == null*/)
+                return '';
 
-        var result = '<img src="' + me.selectedSize().source + '"';
-        if(me.align() != '')
-            result += ' align="' + me.align() + '"';
+            var result = '<img src="' + me.selectedSize().source + '"';
+            if(me.align() != '')
+                result += ' align="' + me.align() + '"';
 
-        result += '>';
+            result += '>';
 
-        return result;
+            return result;
+        }
+        else {
+            return me.codeTemplate().replace(/\{([a-z]+)}/, function(match, code) {
+                if(code == 'align') {
+                    return me.align();
+                }
+                else {
+                    for(i = 0; i<me.sizes().length; ++i) {
+                        var size = me.sizes()[i];
+                        if(size.code == code) {
+                            return size.url;
+                        }
+                    }
+                }
+                return match;
+            });
+        }
     });
 
     this.onUpdate = function() {
@@ -369,6 +400,9 @@ var DemoForm = function () {
                 var size = sizes[i];
                 size.labelEx = size.label + ' [' + size.width + 'x' + size.height + ']';
                 size.url = size.source;
+                var code_re = /[0-9a-z]+(?:_([a-z]))?\.jpg$/;
+                var code_match = code_re.exec(size.url);
+                size.code = code_match[1];
                 me.sizes.push(size);
                 if(size.label == me.lastSelectedSize)
                     me.selectedSize(size);
@@ -410,7 +444,14 @@ jQuery(document).ready(function() {
 });
 
 jQuery(document).on('click', '.copy-url', function() {
+    var source = jQuery(this).parent().children('input');
     var input = jQuery(this).find('textarea');
+
+    if(source.size() > 0) {
+        var value = source.val();
+        input.text(value);
+    }
+
     input.focus();
     input.select();
     document.execCommand('copy');
