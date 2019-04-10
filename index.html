@@ -3,8 +3,8 @@
 <head>
     <script src="https://ajax.googleapis.com/ajax/libs/jquery/2.2.4/jquery.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/knockout/3.4.2/knockout-min.js"></script>
-    <script src="/flickr/js.cookie.js"></script>
-    <script src="/flickr/flickr.js"></script>
+    <script src="js.cookie.js"></script>
+    <script src="flickr.js"></script>
 <style>
 * {
     font-family: Arial;
@@ -78,6 +78,13 @@
         </button>
     </p>
 
+    <p>Image id: 
+        <input size="60" data-bind="value: imageId, valueUpdate: 'keyup'">
+        <button style="display: inline-block" class="copy-url">copy
+            <textarea style="width: 0px; height: 0px; margin: 0px; padding: 0px; border: none; resize: none" data-bind="text: imageId"></textarea>
+        </button>
+    </p>
+
 
     <div data-bind="foreach: sizes" >
         <div style="padding: 2px 8px" >            
@@ -121,6 +128,8 @@ var DemoForm = function () {
     this.updatingSizes = false;
 
     this.align = ko.observable('');
+
+    this.imageId = ko.observable('');
 
     this.imageCode = ko.computed(function() {
         if(typeof(me.codeTemplate()) !== 'string' || me.codeTemplate().length == 0) {
@@ -232,6 +241,7 @@ var DemoForm = function () {
 
         var $img = jQuery(event.target);
         var id = jQuery(event.target).attr('f_id');
+        me.imageId(id);
 
         $img.parents('#PhotoList').find('img').removeClass('selected');
         $img.addClass('selected');
