@@ -76,11 +76,12 @@ Flickr.Photoset.prototype = {
 
     getPhotos: function(handler) {
         var me = this;
+        return new Promise((resolve, reject) => {
             this.api._ajax({
                 data: {
                     method: "flickr.photosets.getPhotos",
                     photoset_id: me.id,
-                    extras: 'url_t',
+                    extras: 'url_t,url_m,date_taken,original_format,o_dims',
                 },
                 success: function(data) {
                     if(data.stat == "fail")
@@ -88,30 +89,30 @@ Flickr.Photoset.prototype = {
                         alert("Flickr error: " + data.message);
                         return;
                     }
-
+    
                     for(i = 0; i<data.photoset.photo.length; ++i)
                     {
                         var photo = new Flickr.Photo(me.api, data.photoset.photo[i]);
                         handler(photo);
                     }
-
+                    resolve();
+    
                 },
-                error: function() { alert("Fail..."); },
+                error: function() { 
+                    reject();
+                 },
             });
-
-      //  }
+        });
     },
 
 }
 
 Flickr.Photo = function(api, data)
 {
+    for (var attrname in data) { 
+        this[attrname] = data[attrname]; 
+    }
     this.api = api;
-    this.id = data.id;
-
-    this.url_t = data.url_t;
-    //this.title = data.title._content;
-    //this.description = data.description._content;
 }
 
 Flickr.Photo.prototype = {

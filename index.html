@@ -10,6 +10,22 @@
     font-family: Arial;
     font-size: 13px;
 }
+#PhotoListAll
+{
+    white-space: nowrap;
+    position: relative;
+    max-height: 320px;
+}
+
+#PhotoListAll h1
+{
+    white-space: nowrap;
+    position: relative;
+    margin: 4px 0px 0px 0px;
+    padding: 4px 4px;
+    background-color: #eeeeee;
+}
+
 #PhotoList
 {
     white-space: nowrap;
@@ -52,8 +68,11 @@
     </select>
     </div>
 
-    <div style="width: 100%; overflow-x: scroll" id="PhotoList" data-bind="foreach: photos, event: { scroll: onImagesScroll }">
-    <img data-bind="attr: { src: url_t, f_id: id }, click: $parent.onImageClick">
+    <div style="width: 100%; overflow-y: scroll;" id="PhotoListAll" data-bind="foreach: photos">
+        <h1 data-bind="text: date"></h1>
+        <div style="width: 100%; overflow-x: scroll" id="PhotoList" data-bind="foreach: photos, event: { scroll: $root.onImagesScroll }">
+            <img data-bind="attr: { src: url_t, f_id: id, alt: datetaken }, click: $root.onImageClick">
+        </div>
     </div>
 
     <p>Size: <select data-bind="options: sizes, optionsText: 'labelEx', value: selectedSize">
@@ -171,10 +190,30 @@ var DemoForm = function () {
 
     this.updatePhotos = function()
     {
-        me.photos.removeAll();
+        var photosByDate = [];
+
         me.selectedPhotoset().getPhotos(function(photo) {
-            me.photos.push(photo);
+            var date = photo.datetaken.substr(0, 10);
+            var photos = photosByDate.find(function(item) { 
+                return item.date == date; 
+            });
+            if (photos === undefined) {
+                photosByDate.push({
+                    date: date,
+                    photos: [photo]
+                });
+            } else {
+                photos.photos.push(photo);
+            }
+        })
+        .then(() => {
+            me.photos.removeAll();
+            photosByDate.forEach(function(photos) {
+                me.photos.push(photos);
+            });
         });
+
+        
     }
 
     this.onGetUserId = function() {
@@ -246,16 +285,15 @@ var DemoForm = function () {
         $img.parents('#PhotoList').find('img').removeClass('selected');
         $img.addClass('selected');
 
-        var photo = null;
+        var photo;
         for(i = 0; i<me.photos().length; i++)
         {
-            if(me.photos()[i].id == id)
-            {
-                photo = me.photos()[i];
+            photo = me.photos()[i].photos.find((p) => p.id == id);
+            if (photo !== undefined) {
                 break;
             }
         }
-        if(photo == null)
+        if(photo == undefined)
             return;
 
         photo.getSizes(function(sizes) {
