@@ -185,41 +185,44 @@ var DemoForm = function () {
         this.flickr.apiKey = this.apiKey();
         this.flickr.userId = this.userId();
         this.photosets.removeAll();
-        this.flickr.getPhotosets(function(item) { me.photosets.push(item); });
+        this.flickr.getPhotosets()
+            .then((photosets) => { photosets.forEach((ps) => me.photosets.push(ps)); });
     };
 
     this.updatePhotos = function()
     {
-        var photosByDate = [];
-
-        me.selectedPhotoset().getPhotos(function(photo) {
-            var date = photo.datetaken.substr(0, 10);
-            var photos = photosByDate.find(function(item) { 
-                return item.date == date; 
-            });
-            if (photos === undefined) {
-                photosByDate.push({
-                    date: date,
-                    photos: [photo]
-                });
-            } else {
-                photos.photos.push(photo);
-            }
-        })
-        .then(() => {
-            me.photos.removeAll();
-            photosByDate.forEach(function(photos) {
-                me.photos.push(photos);
-            });
-        });
-
         
+
+        me.selectedPhotoset().getPhotos()
+            .then((photos) => {
+                var photosByDate = [];
+                photos.forEach((photo) => {
+                    var date = photo.datetaken.substr(0, 10);
+                    var photos = photosByDate.find(function(item) { 
+                        return item.date == date; 
+                    });
+                    if (photos === undefined) {
+                        photosByDate.push({
+                            date: date,
+                            photos: [photo]
+                        });
+                    } else {
+                        photos.photos.push(photo);
+                    }
+                });
+                return photosByDate;
+            })        
+            .then((photosByDate) => {
+                me.photos.removeAll();
+                photosByDate.forEach(function(photos) {
+                    me.photos.push(photos);
+                });
+            });
     }
 
     this.onGetUserId = function() {
-        this.flickr.urls.lookupUser( "http://www.flickr.com/photos/" + this.userProfile() + '/', function(user) {
-            me.userId(user.id);
-        });
+        this.flickr.urls.lookupUser("http://www.flickr.com/photos/" + this.userProfile() + '/')
+            .then((user) => { me.userId(user.id); });
     };
 
     this.reload = function() {
@@ -296,10 +299,8 @@ var DemoForm = function () {
         if(photo == undefined)
             return;
 
-        photo.getSizes(function(sizes) {
-            for(i = 0; i<sizes.length; ++i)
-            {
-                var size = sizes[i];
+        photo.getSizes().then((sizes) => {
+            sizes.forEach((size) => {
                 size.labelEx = size.label + ' [' + size.width + 'x' + size.height + ']';
                 size.url = size.source;
                 var code_re = /[0-9a-z]+(?:_([a-z]))?\.jpg$/;
@@ -308,7 +309,7 @@ var DemoForm = function () {
                 me.sizes.push(size);
                 if(size.label == me.lastSelectedSize)
                     me.selectedSize(size);
-            }
+            });
             me.updatingSizes = false;
         });
     };
@@ -358,9 +359,6 @@ jQuery(document).on('click', '.copy-url', function() {
     input.select();
     document.execCommand('copy');
 });
-
-
-//});
 
 </script>
 

@@ -6,44 +6,45 @@ Flickr = function(apiKey, userId) {
 Flickr.prototype = {
     getPhotosets: function(handle) {
         var me = this;
-        this._ajax({
-            data: {
-                method: "flickr.photosets.getList"
-            },
-            success: function(data) {
-                if(data.stat == "fail")
-                {
-                    alert("Flickr error: " + data.message);
-                    return;
-                }
+        return new Promise((resolve, reject) => {
+            this._ajax({
+                data: {
+                    method: "flickr.photosets.getList"
+                },
+                success: function(data) {
+                    if(data.stat == "fail") {
+                        reject("Flickr error: " + data.message);
+                        return;
+                    }
 
-                for(i = 0; i<data.photosets.photoset.length; ++i)
-                {
-                    var photoset = new Flickr.Photoset(me, data.photosets.photoset[i]);
-                    handle(photoset);
-                }
+                    var photosets = data.photosets.photoset.map((ps) => new Flickr.Photoset(me, ps));
+                    resolve(photosets);
 
-            },
-            error: function() { alert("Fail..."); },
+                },
+                error: function() { reject("Unexpected Flickr API failure"); },
+            });
         });
     },
 
     urls: {
-        lookupUser: function(url, handler) {
-            this.__proto__._ajax({
-                data: {
-                    method: 'flickr.urls.lookupUser',
-                    url: url,
-                },
-                success: function(data) {
-                    if(data.stat == "fail")
-                    {
-                        alert("Flickr error: " + data.message);
-                        return;
-                    }
+        lookupUser: function(url) {
+            return new Promise((resolve, reject) => {
+                this.__proto__._ajax({
+                    data: {
+                        method: 'flickr.urls.lookupUser',
+                        url: url,
+                    },
+                    success: function(data) {
+                        if(data.stat == "fail")
+                        {
+                            reject("Flickr error: " + data.message);
+                            return;
+                        }
 
-                    handler(data.user);
-                }
+                        resolve(data.user);
+                    },
+                    error: function() { reject("Unexpected Flickr API failure"); },
+                });
             });
         },
     },
@@ -84,23 +85,19 @@ Flickr.Photoset.prototype = {
                     extras: 'url_t,url_m,date_taken,original_format,o_dims',
                 },
                 success: function(data) {
-                    if(data.stat == "fail")
-                    {
-                        alert("Flickr error: " + data.message);
+                    if(data.stat == "fail") {
+                        reject("Flickr API error: " + data.message);
                         return;
                     }
-    
-                    for(i = 0; i<data.photoset.photo.length; ++i)
-                    {
-                        var photo = new Flickr.Photo(me.api, data.photoset.photo[i]);
-                        handler(photo);
-                    }
-                    resolve();
+
+                    var photos = data.photoset.photo.map(
+                        (p) => new Flickr.Photo(me.api, p));
+                    resolve(photos);
     
                 },
                 error: function() { 
-                    reject();
-                 },
+                    reject("Unexpected Flickr API failure");
+                },
             });
         });
     },
@@ -116,27 +113,25 @@ Flickr.Photo = function(api, data)
 }
 
 Flickr.Photo.prototype = {
-        getSizes: function(handler) {
-            me = this;
+    getSizes: function(handler) {
+        me = this;
+        return new Promise((resolve, reject) => {
             this.api._ajax({
                 data: {
                     method: "flickr.photos.getSizes",
                     photo_id: me.id,
                 },
                 success: function(data) {
-                    if(data.stat == "fail")
-                    {
-                        alert("Flickr error: " + data.message);
+                    if(data.stat == "fail") {
+                        reject("Flickr API error: " + data.message);
                         return;
                     }
 
-                    handler(data.sizes.size);
+                    resolve(data.sizes.size);
                 },
-                error: function() { alert("Fail..."); },
+                error: function() { reject("Unexpected Flickr API failure"); },
             });
-
-
-        //}
+        });
     },
 
 };
