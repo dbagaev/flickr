@@ -5,62 +5,48 @@ Flickr = function(apiKey, userId) {
 
 Flickr.prototype = {
     getPhotosets: function(handle) {
-        var me = this;
-        this._ajax({
-            data: {
-                method: "flickr.photosets.getList"
-            },
-            success: function(data) {
-                if(data.stat == "fail")
-                {
-                    alert("Flickr error: " + data.message);
-                    return;
-                }
-
-                for(i = 0; i<data.photosets.photoset.length; ++i)
-                {
-                    var photoset = new Flickr.Photoset(me, data.photosets.photoset[i]);
-                    handle(photoset);
-                }
-
-            },
-            error: function() { alert("Fail..."); },
-        });
+        var me = this;        
+        return this._callFlickrApi("flickr.photosets.getList", {})
+            .then((data) => {
+                    return data.photosets.photoset.map((ps) => new Flickr.Photoset(me, ps)); });
     },
 
     urls: {
-        lookupUser: function(url, handler) {
-            this.__proto__._ajax({
-                data: {
-                    method: 'flickr.urls.lookupUser',
-                    url: url,
-                },
-                success: function(data) {
-                    if(data.stat == "fail")
-                    {
-                        alert("Flickr error: " + data.message);
-                        return;
-                    }
-
-                    handler(data.user);
-                }
-            });
+        lookupUser: function(url) {
+            return this.__proto__._callFlickrApi(
+                    'flickr.urls.lookupUser',
+                    { url: url })
+                .then((data) => data.user);
         },
     },
 
-    _ajax: function(cfg) {
-        cfg.url = "https://api.flickr.com/services/rest/";
-        cfg.data.api_key = this.apiKey;
-        cfg.data.user_id = this.userId;
-        cfg.data.format = "json";
-        cfg.data.nojsoncallback = 1;
-        cfg.type = "post";
-        cfg.dataType = "json";
+    _callFlickrApi: function(method, data) {
+        return new Promise((resolve, reject) => {
+            jQuery.ajax({
+                url: "https://api.flickr.com/services/rest/",
+                type: "post",
+                dataType: "json",
+                data: Object.assign(
+                    {
+                        method: method,
+                        api_key: this.apiKey,
+                        user_id: this.userId,
+                        format: "json",
+                        nojsoncallback: 1,
+                    },
+                    data),
 
-        jQuery.ajax(cfg);
+                success: function(data) {
+                    if(data.stat == "fail") {
+                        reject("Flickr error: " + data.message);
+                    }
+                    resolve(data);
+                },
+
+                error: function() { reject("Unexpected Flickr API failure"); }
+            });
+        });
     }
-
-
 }
 
 Flickr.Photoset = function(api, data)
@@ -76,66 +62,31 @@ Flickr.Photoset.prototype = {
 
     getPhotos: function(handler) {
         var me = this;
-            this.api._ajax({
-                data: {
-                    method: "flickr.photosets.getPhotos",
-                    photoset_id: me.id,
-                    extras: 'url_t',
-                },
-                success: function(data) {
-                    if(data.stat == "fail")
-                    {
-                        alert("Flickr error: " + data.message);
-                        return;
-                    }
-
-                    for(i = 0; i<data.photoset.photo.length; ++i)
-                    {
-                        var photo = new Flickr.Photo(me.api, data.photoset.photo[i]);
-                        handler(photo);
-                    }
-
-                },
-                error: function() { alert("Fail..."); },
-            });
-
-      //  }
+        return this.api._callFlickrApi(
+            "flickr.photosets.getPhotos", 
+            { 
+                photoset_id: me.id,
+                extras: 'url_t,url_m,date_taken,original_format,o_dims',
+            })
+            .then(function(data) {
+                return data.photoset.photo.map((p) => new Flickr.Photo(me.api, p)); });
     },
 
 }
 
 Flickr.Photo = function(api, data)
 {
+    for (var attrname in data) { 
+        this[attrname] = data[attrname]; 
+    }
     this.api = api;
-    this.id = data.id;
-
-    this.url_t = data.url_t;
-    //this.title = data.title._content;
-    //this.description = data.description._content;
 }
 
 Flickr.Photo.prototype = {
-        getSizes: function(handler) {
-            me = this;
-            this.api._ajax({
-                data: {
-                    method: "flickr.photos.getSizes",
-                    photo_id: me.id,
-                },
-                success: function(data) {
-                    if(data.stat == "fail")
-                    {
-                        alert("Flickr error: " + data.message);
-                        return;
-                    }
-
-                    handler(data.sizes.size);
-                },
-                error: function() { alert("Fail..."); },
-            });
-
-
-        //}
+    getSizes: function(handler) {
+        me = this;
+        return this.api._callFlickrApi("flickr.photos.getSizes", { photo_id: me.id })
+            .then((data) => data.sizes.size);
     },
 
 };
