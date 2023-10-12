@@ -186,7 +186,8 @@ var DemoForm = function () {
         this.flickr.userId = this.userId();
         this.photosets.removeAll();
         this.flickr.getPhotosets()
-            .then((photosets) => { photosets.forEach((ps) => me.photosets.push(ps)); });
+            .then((photosets) => { photosets.forEach((ps) => me.photosets.push(ps)); })
+            .catch((message) => alert(message));
     };
 
     this.updatePhotos = function()
@@ -217,7 +218,8 @@ var DemoForm = function () {
                 photosByDate.forEach(function(photos) {
                     me.photos.push(photos);
                 });
-            });
+            })
+            .catch((message) => alert(message));
     }
 
     this.onGetUserId = function() {
@@ -299,19 +301,21 @@ var DemoForm = function () {
         if(photo == undefined)
             return;
 
-        photo.getSizes().then((sizes) => {
-            sizes.forEach((size) => {
-                size.labelEx = size.label + ' [' + size.width + 'x' + size.height + ']';
-                size.url = size.source;
-                var code_re = /[0-9a-z]+(?:_([a-z]))?\.jpg$/;
-                var code_match = code_re.exec(size.url);
-                size.code = code_match[1];
-                me.sizes.push(size);
-                if(size.label == me.lastSelectedSize)
-                    me.selectedSize(size);
-            });
-            me.updatingSizes = false;
-        });
+        photo.getSizes()
+            .then((sizes) => {
+                sizes.forEach((size) => {
+                    size.labelEx = size.label + ' [' + size.width + 'x' + size.height + ']';
+                    size.url = size.source;
+                    var code_re = /[0-9a-z]+(?:_([a-z]))?\.jpg$/;
+                    var code_match = code_re.exec(size.url);
+                    size.code = code_match[1];
+                    me.sizes.push(size);
+                    if(size.label == me.lastSelectedSize)
+                        me.selectedSize(size);
+                });
+                me.updatingSizes = false;
+            })
+            .catch((message) => alert(message));
     };
 
     this.onInsert = function(data, e) {
