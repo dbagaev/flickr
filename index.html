@@ -54,7 +54,7 @@
 
 <body>
 
-<div class="flickr-helper-dialog">
+<div class="flickr-helper-dialog" style="display:flex; flex-wrap:wrap;">
     <form id="flickrApiForm">
         <div>
             Api key: <input data-bind="value: apiKey" size=32 id="flickrApiKey"/>
@@ -74,6 +74,8 @@
             <img data-bind="attr: { src: url_t, f_id: id, alt: datetaken }, click: $root.onImageClick">
         </div>
     </div>
+
+    <div style="display: inline-block">
 
     <p>Size: <select data-bind="options: sizes, optionsText: 'labelEx', value: selectedSize">
     </select></p>
@@ -116,6 +118,12 @@
         </div>
     </div>
 
+    </div>
+
+    <div style="display: inline-block; flex-grow: 100">
+        <img data-bind="attr: { src: previewUrl }" style="max-width: 500px; max-height: 500px; border: solid 1px">
+    </div>
+
 </div>
 
 </body>
@@ -145,6 +153,8 @@ var DemoForm = function () {
     this.selectedSize.subscribe(function(newValue) { if(!me.updatingSizes && newValue) me.lastSelectedSize = newValue.label; });
     this.lastSelectedSize = null;
     this.updatingSizes = false;
+
+    this.previewUrl = ko.observable();
 
     this.align = ko.observable('');
 
@@ -280,7 +290,6 @@ var DemoForm = function () {
 
     this.onImageClick = function(data, event) {
         me.updatingSizes = true;
-        me.sizes.removeAll();
         me.selectedImage = this;
 
         var $img = jQuery(event.target);
@@ -301,8 +310,11 @@ var DemoForm = function () {
         if(photo == undefined)
             return;
 
+        me.previewUrl(photo.url_m);
+
         photo.getSizes()
             .then((sizes) => {
+                me.sizes.removeAll();
                 sizes.forEach((size) => {
                     size.labelEx = size.label + ' [' + size.width + 'x' + size.height + ']';
                     size.url = size.source;
