@@ -95,9 +95,9 @@
     </p>
 
     <p>Code preview: 
-        <input size="60" data-bind="value: imageCode">
+        <textarea type="text" cols="60" rows="4" data-bind="value: imageCode" style="white-space: pre; overflow-wrap: normal; overflow-x: scroll; font-family: Courier New; font-size: 0.9em"></textarea>
         <button style="display: inline-block" class="copy-url">copy
-            <textarea style="width: 0px; height: 0px; margin: 0px; padding: 0px; border: none; resize: none"></textarea>
+            <textarea style="width: 0px; height: 0px; margin: 0px; padding: 0px; border: none; resize: none" data-bind="value: imageCode"></textarea>
         </button>
     </p>
 
@@ -138,6 +138,29 @@
 
 <script type="text/javascript">
 
+function applyTemplate(photo, template, data) {
+    return template.replaceAll(/\{([a-z]+)\}/g, function(match, code) {
+        if(code == 'align') {
+            return data['align'];
+        }
+        else if (code == 'url') {
+            return photo.sizes[data['selected_size']].url;
+        }
+        else if (code == 'flex') {
+            return String(photo.flex).substr(0, 6);
+        }
+        else {
+            for(i = 0; i<me.sizes().length; ++i) {
+                var size = me.sizes()[i];
+                if(size.code == code) {
+                    return size.url;
+                }
+            }
+        }
+        return match;
+    });
+}
+
 var DemoForm = function () {
     var me = this;
 
@@ -169,34 +192,21 @@ var DemoForm = function () {
     this.imageId = ko.observable('');
 
     this.imageCode = ko.computed(function() {
+        var data = { 
+            'align': me.align(), 
+            'selected_size': me.selectedSize() != undefined ? me.selectedSize().label : undefined 
+        };
         if(typeof(me.codeTemplate()) !== 'string' || me.codeTemplate().length == 0) {
-            if(me.selectedSize() == null/* || me.selectedImage == null*/)
+            if(me.selectedSize() === undefined/* || me.selectedImage == null*/)
                 return '';
 
-            var result = '<img src="' + me.selectedSize().source + '"';
-            if(me.align() != '')
-                result += ' align="' + me.align() + '"';
-
-            result += '>';
-
-            return result;
+            var template = '<img src="{url}" style="flex: {flex}">';
         }
         else {
-            return me.codeTemplate().replace(/\{([a-z]+)}/, function(match, code) {
-                if(code == 'align') {
-                    return me.align();
-                }
-                else {
-                    for(i = 0; i<me.sizes().length; ++i) {
-                        var size = me.sizes()[i];
-                        if(size.code == code) {
-                            return size.url;
-                        }
-                    }
-                }
-                return match;
-            });
+            var template = me.codeTemplate();
         }
+
+        return me.selectedPhotos().map((ph) => applyTemplate(ph, template, data)).join("\n");
     });
 
     this.onUpdate = function() {
