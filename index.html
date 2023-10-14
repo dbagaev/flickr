@@ -210,10 +210,27 @@ var DemoForm = function () {
     });
 
     this.onUpdate = function() {
-        this.flickr.apiKey = this.apiKey();
-        this.flickr.userId = this.userId();
-        this.photosets.removeAll();
-        this.flickr.getPhotosets()
+        new Promise((resolve, reject) => { 
+            this.flickr.apiKey = this.apiKey(); 
+            resolve(); 
+        })
+            .then(() => {
+                if (!/^[0-9]+@[0-9A-Za-z]+$/.test(this.userId())) {
+                    if (/https:\/\/www.flickr.com\//.test(this.userId())) {
+                        return this.flickr.urls.lookupUser(this.userId());
+                    } else {
+                        return this.flickr.urls.lookupUser("http://www.flickr.com/photos/" + this.userId() + "/");
+                    }
+                    
+                } else {
+                    return this.userId();
+                }
+            })
+            .then((userId) => { 
+                this.flickr.userId = userId; 
+                this.photosets.removeAll();
+            })
+            .then(() => this.flickr.getPhotosets())
             .then((photosets) => { photosets.forEach((ps) => me.photosets.push(ps)); })
             .catch((message) => alert(message));
     };
@@ -252,11 +269,6 @@ var DemoForm = function () {
             })
             .catch((message) => alert(message));
     }
-
-    this.onGetUserId = function() {
-        this.flickr.urls.lookupUser("http://www.flickr.com/photos/" + this.userProfile() + '/')
-            .then((user) => { me.userId(user.id); });
-    };
 
     this.reload = function() {
         if(me.photosets().length == 0)
