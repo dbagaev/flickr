@@ -75,6 +75,10 @@
         </div>
     </div>
 
+    <div style="display:flex; flex-wrap:nowrap">
+
+    <div style="display: inline-block; min-width: 696px">
+
     <p>Size: <select data-bind="options: sizes, optionsText: 'labelEx', value: selectedSize">
     </select></p>
 
@@ -91,9 +95,9 @@
     </p>
 
     <p>Code preview: 
-        <input size="60" data-bind="value: imageCode">
+        <textarea type="text" cols="60" rows="4" data-bind="value: imageCode" style="white-space: pre; overflow-wrap: normal; overflow-x: scroll; font-family: Courier New; font-size: 0.9em"></textarea>
         <button style="display: inline-block" class="copy-url">copy
-            <textarea style="width: 0px; height: 0px; margin: 0px; padding: 0px; border: none; resize: none"></textarea>
+            <textarea style="width: 0px; height: 0px; margin: 0px; padding: 0px; border: none; resize: none" data-bind="value: imageCode"></textarea>
         </button>
     </p>
 
@@ -116,12 +120,46 @@
         </div>
     </div>
 
+    </div>
+
+    <div style="display: flex; flex-grow: 100;justify-content: center; padding: 8px;border-left: solid 1px black; border-right: solid 1px black; margin-right: 8px">
+        <div style="max-width: 100%; overflow-x: hidden; display: flex; flex-flow: row nowrap;justify-content: center;align-content: stretch; max-height: 375px" data-bind="foreach: selectedPhotos">
+            <div data-bind="style: { 'flex': flex }" style="padding: 2px 2px;">
+                <img data-bind="attr: { src: url_m }, style: { 'flex': flex }" style="width: auto; height: auto; max-width: 100%; max-height: 100%; border: solid 1px gray">
+            </div>
+        </div>
+    </div>
+</div>
+
 </div>
 
 </body>
 
 
 <script type="text/javascript">
+
+function applyTemplate(photo, template, data) {
+    return template.replaceAll(/\{([a-z]+)\}/g, function(match, code) {
+        if(code == 'align') {
+            return data['align'];
+        }
+        else if (code == 'url') {
+            return photo.sizes[data['selected_size']].url;
+        }
+        else if (code == 'flex') {
+            return String(photo.flex).substr(0, 6);
+        }
+        else {
+            for(i = 0; i<me.sizes().length; ++i) {
+                var size = me.sizes()[i];
+                if(size.code == code) {
+                    return size.url;
+                }
+            }
+        }
+        return match;
+    });
+}
 
 var DemoForm = function () {
     var me = this;
@@ -135,6 +173,9 @@ var DemoForm = function () {
     this.selectedPhotoset.subscribe(function(newValue) { me.updatePhotos(); });
 
     this.photos = ko.observableArray();
+    this.selectedPhotos = ko.observableArray();
+    this.selectedPhotos.extend({ rateLimit: { method: "notifyWhenChangesStop" } });
+    this.lastSelectedPhoto = ko.observableArray();
 
     this.selectedImage = null;
 
@@ -151,34 +192,21 @@ var DemoForm = function () {
     this.imageId = ko.observable('');
 
     this.imageCode = ko.computed(function() {
+        var data = { 
+            'align': me.align(), 
+            'selected_size': me.selectedSize() != undefined ? me.selectedSize().label : undefined 
+        };
         if(typeof(me.codeTemplate()) !== 'string' || me.codeTemplate().length == 0) {
-            if(me.selectedSize() == null/* || me.selectedImage == null*/)
+            if(me.selectedSize() === undefined/* || me.selectedImage == null*/)
                 return '';
 
-            var result = '<img src="' + me.selectedSize().source + '"';
-            if(me.align() != '')
-                result += ' align="' + me.align() + '"';
-
-            result += '>';
-
-            return result;
+            var template = '<img src="{url}" style="flex: {flex}">';
         }
         else {
-            return me.codeTemplate().replace(/\{([a-z]+)}/, function(match, code) {
-                if(code == 'align') {
-                    return me.align();
-                }
-                else {
-                    for(i = 0; i<me.sizes().length; ++i) {
-                        var size = me.sizes()[i];
-                        if(size.code == code) {
-                            return size.url;
-                        }
-                    }
-                }
-                return match;
-            });
+            var template = me.codeTemplate();
         }
+
+        return me.selectedPhotos().map((ph) => applyTemplate(ph, template, data)).join("\n");
     });
 
     this.onUpdate = function() {
@@ -198,6 +226,9 @@ var DemoForm = function () {
             .then((photos) => {
                 var photosByDate = [];
                 photos.forEach((photo) => {
+                    if (photo.flex === undefined && photo.o_height != 0 && photo.o_width != 0) {
+                        photo.flex = photo.o_width/photo.o_height;
+                    }
                     var date = photo.datetaken.substr(0, 10);
                     var photos = photosByDate.find(function(item) { 
                         return item.date == date; 
@@ -280,16 +311,19 @@ var DemoForm = function () {
 
     this.onImageClick = function(data, event) {
         me.updatingSizes = true;
-        me.sizes.removeAll();
         me.selectedImage = this;
 
         var $img = jQuery(event.target);
         var id = jQuery(event.target).attr('f_id');
         me.imageId(id);
 
-        $img.parents('#PhotoList').find('img').removeClass('selected');
-        $img.addClass('selected');
+        // If no Ctrl then clear last selection
+        if (!event.ctrlKey) {
+            me.selectedPhotos.removeAll();
+            $img.parents('#PhotoList').find('img').removeClass('selected');
+        }
 
+        // Find photo data in the lists
         var photo;
         for(i = 0; i<me.photos().length; i++)
         {
@@ -301,8 +335,25 @@ var DemoForm = function () {
         if(photo == undefined)
             return;
 
+        // Select photo
+        if (event.ctrlKey) {
+            var removed = me.selectedPhotos.remove((p) => p.id == id);
+            if (removed.length > 0) {
+                $img.removeClass('selected');
+            } else {
+                me.lastSelectedPhoto(photo);
+                $img.addClass('selected');
+                me.selectedPhotos.push(photo);
+            }
+        } else {
+            me.lastSelectedPhoto(photo);
+            $img.addClass('selected');
+            me.selectedPhotos.push(photo);
+        }
+
         photo.getSizes()
             .then((sizes) => {
+                me.sizes.removeAll();
                 sizes.forEach((size) => {
                     size.labelEx = size.label + ' [' + size.width + 'x' + size.height + ']';
                     size.url = size.source;
