@@ -1,6 +1,8 @@
 Flickr = function(apiKey, userId) {
     this.apiKey = apiKey;
     this.userId = userId;
+
+    this.urls = new Flickr.Urls(this);
 }
 
 Flickr.prototype = {
@@ -9,15 +11,6 @@ Flickr.prototype = {
         return this._callFlickrApi("flickr.photosets.getList", {})
             .then((data) => {
                     return data.photosets.photoset.map((ps) => new Flickr.Photoset(me, ps)); });
-    },
-
-    urls: {
-        lookupUser: function(url) {
-            return this.__proto__._callFlickrApi(
-                    'flickr.urls.lookupUser',
-                    { url: url })
-                .then((data) => data.user);
-        },
     },
 
     _callFlickrApi: function(method, data) {
@@ -30,7 +23,7 @@ Flickr.prototype = {
                     {
                         method: method,
                         api_key: this.apiKey,
-                        user_id: this.userId,
+                        user_id: this['userId'] !== undefined ? this.userId : null,
                         format: "json",
                         nojsoncallback: 1,
                     },
@@ -47,6 +40,19 @@ Flickr.prototype = {
             });
         });
     }
+}
+
+Flickr.Urls = function(api) {
+    this.api = api;
+}
+
+Flickr.Urls.prototype = {
+    lookupUser: function(url) {
+        return this.api._callFlickrApi(
+                'flickr.urls.lookupUser',
+                { url: url })
+            .then((data) => data.user.id);
+    },
 }
 
 Flickr.Photoset = function(api, data)
