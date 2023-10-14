@@ -54,7 +54,7 @@
 
 <body>
 
-<div class="flickr-helper-dialog" style="display:flex; flex-wrap:wrap;">
+<div class="flickr-helper-dialog">
     <form id="flickrApiForm">
         <div>
             Api key: <input data-bind="value: apiKey" size=32 id="flickrApiKey"/>
@@ -75,7 +75,9 @@
         </div>
     </div>
 
-    <div style="display: inline-block">
+    <div style="display:flex; flex-wrap:nowrap">
+
+    <div style="display: inline-block; min-width: 696px">
 
     <p>Size: <select data-bind="options: sizes, optionsText: 'labelEx', value: selectedSize">
     </select></p>
@@ -120,9 +122,14 @@
 
     </div>
 
-    <div style="display: inline-block; flex-grow: 100">
-        <img data-bind="attr: { src: previewUrl }" style="max-width: 500px; max-height: 500px; border: solid 1px">
+    <div style="display: flex; flex-grow: 100;justify-content: center; padding: 8px;border-left: solid 1px black; border-right: solid 1px black; margin-right: 8px">
+        <div style="max-width: 100%; overflow-x: hidden; display: flex; flex-flow: row nowrap;justify-content: center;align-content: stretch; max-height: 375px" data-bind="foreach: selectedPhotos">
+            <div data-bind="style: { 'flex': flex }" style="padding: 2px 2px;">
+                <img data-bind="attr: { src: url_m }, style: { 'flex': flex }" style="width: auto; height: auto; max-width: 100%; max-height: 100%; border: solid 1px gray">
+            </div>
+        </div>
     </div>
+</div>
 
 </div>
 
@@ -143,6 +150,9 @@ var DemoForm = function () {
     this.selectedPhotoset.subscribe(function(newValue) { me.updatePhotos(); });
 
     this.photos = ko.observableArray();
+    this.selectedPhotos = ko.observableArray();
+    this.selectedPhotos.extend({ rateLimit: { method: "notifyWhenChangesStop" } });
+    this.lastSelectedPhoto = ko.observableArray();
 
     this.selectedImage = null;
 
@@ -153,8 +163,6 @@ var DemoForm = function () {
     this.selectedSize.subscribe(function(newValue) { if(!me.updatingSizes && newValue) me.lastSelectedSize = newValue.label; });
     this.lastSelectedSize = null;
     this.updatingSizes = false;
-
-    this.previewUrl = ko.observable();
 
     this.align = ko.observable('');
 
@@ -208,6 +216,9 @@ var DemoForm = function () {
             .then((photos) => {
                 var photosByDate = [];
                 photos.forEach((photo) => {
+                    if (photo.flex === undefined && photo.o_height != 0 && photo.o_width != 0) {
+                        photo.flex = photo.o_width/photo.o_height;
+                    }
                     var date = photo.datetaken.substr(0, 10);
                     var photos = photosByDate.find(function(item) { 
                         return item.date == date; 
@@ -296,9 +307,13 @@ var DemoForm = function () {
         var id = jQuery(event.target).attr('f_id');
         me.imageId(id);
 
-        $img.parents('#PhotoList').find('img').removeClass('selected');
-        $img.addClass('selected');
+        // If no Ctrl then clear last selection
+        if (!event.ctrlKey) {
+            me.selectedPhotos.removeAll();
+            $img.parents('#PhotoList').find('img').removeClass('selected');
+        }
 
+        // Find photo data in the lists
         var photo;
         for(i = 0; i<me.photos().length; i++)
         {
@@ -310,7 +325,21 @@ var DemoForm = function () {
         if(photo == undefined)
             return;
 
-        me.previewUrl(photo.url_m);
+        // Select photo
+        if (event.ctrlKey) {
+            var removed = me.selectedPhotos.remove((p) => p.id == id);
+            if (removed.length > 0) {
+                $img.removeClass('selected');
+            } else {
+                me.lastSelectedPhoto(photo);
+                $img.addClass('selected');
+                me.selectedPhotos.push(photo);
+            }
+        } else {
+            me.lastSelectedPhoto(photo);
+            $img.addClass('selected');
+            me.selectedPhotos.push(photo);
+        }
 
         photo.getSizes()
             .then((sizes) => {
