@@ -5,58 +5,7 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/knockout/3.4.2/knockout-min.js"></script>
     <script src="js.cookie.js"></script>
     <script src="flickr.js"></script>
-<style>
-* {
-    font-family: Arial;
-    font-size: 13px;
-}
-#PhotoListAll
-{
-    white-space: nowrap;
-    position: relative;
-    max-height: 320px;
-    margin: 4px 0px;
-}
-
-#PhotoListAll h1
-{
-    white-space: nowrap;
-    position: relative;
-    margin: 4px 0px 0px 0px;
-    padding: 4px 4px;
-    background-color: #eeeeee;
-}
-
-#PhotoListAll h1:first-child
-{
-    margin-top: 0px;
-}
-
-#PhotoList
-{
-    justify-content: flex-start;
-    position: relative;
-    flex-wrap: wrap;
-    display: flex;
-}
-
-#PhotoList img
-{
-    display: inline-block;
-    position: relative;
-    padding: 1px;
-    margin: 2px;
-}
-
-#PhotoList img.selected
-{
-    display: inline-block;
-    position: relative;
-    padding: 1px;
-    margin: 0px;
-    border: 2px solid blue;
-}
-</style>
+    <link rel="stylesheet" href="style.css">
 
 </head>
 
@@ -76,12 +25,10 @@
     </select>
     </div>
 
-    <div style="width: 100%; overflow-y: scroll;" id="PhotoListAll" data-bind="foreach: photos">
-        <div style="position: sticky; top: 0px; z-index: 1;">
-            <h1 data-bind="text: date"></h1>
-        </div>
-        <div style="width: 100%; z-index: 0" id="PhotoList" data-bind="foreach: photos, event: { scroll: $root.onImagesScroll }">
-            <div data-bind="style : { flexBasis: flex }">
+    <div style="width: 100%; overflow-y: scroll;" id="PhotoList" data-bind="foreach: photos">
+        <h1 data-bind="text: date"></h1>
+        <div class="date-photos" data-bind="foreach: photos, event: { scroll: $root.onImagesScroll }">
+            <div data-bind="style: { flexBasis: flex }">
                 <img data-bind="attr: { src: url_t, f_id: id, alt: datetaken }, click: $root.onImageClick">
             </div>
         </div>

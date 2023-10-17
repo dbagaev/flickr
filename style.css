@@ -1,0 +1,47 @@
+* {
+  font-family: Arial;
+  font-size: 13px;
+}
+
+#PhotoList {
+  white-space: nowrap;
+  position: relative;
+  max-height: 320px;
+  overflow-y: scroll;
+}
+#PhotoList h1 {
+  white-space: nowrap;
+  position: relative;
+  margin: 4px 0px 0px 0px;
+  padding: 4px 4px;
+  background-color: #eeeeee;
+  position: sticky;
+  top: 0px;
+  z-index: 1;
+}
+#PhotoList h1:first-child {
+  margin-top: 0px;
+}
+#PhotoList .date-photos {
+  position: relative;
+  width: 100%;
+  z-index: 0;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-start;
+}
+#PhotoList .date-photos img {
+  display: inline-block;
+  position: relative;
+  padding: 1px;
+  margin: 2px;
+}
+#PhotoList .date-photos img.selected {
+  display: inline-block;
+  position: relative;
+  padding: 1px;
+  margin: 0px;
+  border: 2px solid blue;
+}
+
+/*# sourceMappingURL=style.css.map */
