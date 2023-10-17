@@ -139,22 +139,22 @@
 <script type="text/javascript">
 
 function applyTemplate(photo, template, data) {
-    return template.replaceAll(/\{([a-z]+)\}/g, function(match, code) {
-        if(code == 'align') {
+    return template.replaceAll(/\{([0-9a-z_]+)\}/g, function(match, tag) {
+        if(tag == 'align') {
             return data['align'];
         }
-        else if (code == 'url') {
-            return photo.sizes[data['selected_size']].url;
+        else if (tag == 'url' && photo.sizes && photo.sizes.has(data['selected_size'])) {
+            return photo.sizes.get(data['selected_size']).url;
         }
-        else if (code == 'flex') {
+        else if (tag == 'flex') {
             return String(photo.flex).substr(0, 6);
         }
-        else {
-            for(i = 0; i<me.sizes().length; ++i) {
-                var size = me.sizes()[i];
-                if(size.code == code) {
-                    return size.url;
-                }
+        else if (tag.match(/url_[0-9a-z]{1,2}/)) {
+            var replaceUrl;
+            photo.sizes.forEach(
+                (sz) => { if ('url_' + sz.code == tag) { replaceUrl = sz.source; }});
+            if (replaceUrl) {
+                return replaceUrl;
             }
         }
         return match;
@@ -176,12 +176,14 @@ var DemoForm = function () {
     this.selectedPhotos = ko.observableArray();
     this.selectedPhotos.extend({ rateLimit: { method: "notifyWhenChangesStop" } });
     this.lastSelectedPhoto = ko.observableArray();
+    this.lastSelectedPhoto.subscribe( (newValue) => { me.updateSizes(newValue); });
 
     this.selectedImage = null;
 
     this.codeTemplate = ko.observable();
 
     this.sizes = ko.observableArray();
+    this.sizes.extend({ rateLimit: { method: "notifyWhenChangesStop" } });
     this.selectedSize = ko.observable();
     this.selectedSize.subscribe(function(newValue) { if(!me.updatingSizes && newValue) me.lastSelectedSize = newValue.label; });
     this.lastSelectedSize = null;
@@ -363,10 +365,28 @@ var DemoForm = function () {
             me.selectedPhotos.push(photo);
         }
 
-        photo.getSizes()
+    }
+
+    this.updateSizes = function(photo) {
+        return Promise.resolve(photo)
+            .then(photo => {
+                if (photo.sizes === undefined) {
+                    return photo.getSizes()
+                        .then((sizes) => {
+                            // First cache sizes in photo itself
+                            photo.sizes = sizes.reduce((szMap, sz) => { 
+                                szMap.set(sz.label, sz); 
+                                return szMap; 
+                            }, new Map());
+                            return photo.sizes;
+                        });
+                } else {
+                    return photo.sizes;
+                }
+            })
             .then((sizes) => {
                 me.sizes.removeAll();
-                sizes.forEach((size) => {
+                sizes.forEach((size, label) => {
                     size.labelEx = size.label + ' [' + size.width + 'x' + size.height + ']';
                     size.url = size.source;
                     var code_re = /[0-9a-z]+(?:_([a-z]))?\.jpg$/;

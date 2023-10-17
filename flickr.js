@@ -92,11 +92,7 @@ Flickr.Photo.prototype = {
     getSizes: function(handler) {
         me = this;
         return this.api._callFlickrApi("flickr.photos.getSizes", { photo_id: me.id })
-            .then((data) => {
-                me.sizes = [];
-                data.sizes.size.forEach((sz) => { me.sizes[sz.label] = sz; });
-                return data.sizes.size;
-            });
+            .then((data) => data.sizes.size);
     },
 
 };
