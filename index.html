@@ -176,12 +176,14 @@ var DemoForm = function () {
     this.selectedPhotos = ko.observableArray();
     this.selectedPhotos.extend({ rateLimit: { method: "notifyWhenChangesStop" } });
     this.lastSelectedPhoto = ko.observableArray();
+    this.lastSelectedPhoto.subscribe( (newValue) => { me.updateSizes(newValue); });
 
     this.selectedImage = null;
 
     this.codeTemplate = ko.observable();
 
     this.sizes = ko.observableArray();
+    this.sizes.extend({ rateLimit: { method: "notifyWhenChangesStop" } });
     this.selectedSize = ko.observable();
     this.selectedSize.subscribe(function(newValue) { if(!me.updatingSizes && newValue) me.lastSelectedSize = newValue.label; });
     this.lastSelectedSize = null;
@@ -363,10 +365,28 @@ var DemoForm = function () {
             me.selectedPhotos.push(photo);
         }
 
-        photo.getSizes()
+    }
+
+    this.updateSizes = function(photo) {
+        return Promise.resolve(photo)
+            .then(photo => {
+                if (photo.sizes === undefined) {
+                    return photo.getSizes()
+                        .then((sizes) => {
+                            // First cache sizes in photo itself
+                            photo.sizes = sizes.reduce((szMap, sz) => { 
+                                szMap.set(sz.label, sz); 
+                                return szMap; 
+                            }, new Map());
+                            return photo.sizes;
+                        });
+                } else {
+                    return photo.sizes;
+                }
+            })
             .then((sizes) => {
                 me.sizes.removeAll();
-                sizes.forEach((size) => {
+                sizes.forEach((size, label) => {
                     size.labelEx = size.label + ' [' + size.width + 'x' + size.height + ']';
                     size.url = size.source;
                     var code_re = /[0-9a-z]+(?:_([a-z]))?\.jpg$/;
