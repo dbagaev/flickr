@@ -139,22 +139,22 @@
 <script type="text/javascript">
 
 function applyTemplate(photo, template, data) {
-    return template.replaceAll(/\{([a-z]+)\}/g, function(match, code) {
-        if(code == 'align') {
+    return template.replaceAll(/\{([0-9a-z_]+)\}/g, function(match, tag) {
+        if(tag == 'align') {
             return data['align'];
         }
-        else if (code == 'url') {
-            return photo.sizes[data['selected_size']].url;
+        else if (tag == 'url' && photo.sizes && photo.sizes.has(data['selected_size'])) {
+            return photo.sizes.get(data['selected_size']).url;
         }
-        else if (code == 'flex') {
+        else if (tag == 'flex') {
             return String(photo.flex).substr(0, 6);
         }
-        else {
-            for(i = 0; i<me.sizes().length; ++i) {
-                var size = me.sizes()[i];
-                if(size.code == code) {
-                    return size.url;
-                }
+        else if (tag.match(/url_[0-9a-z]{1,2}/)) {
+            var replaceUrl;
+            photo.sizes.forEach(
+                (sz) => { if ('url_' + sz.code == tag) { replaceUrl = sz.source; }});
+            if (replaceUrl) {
+                return replaceUrl;
             }
         }
         return match;
