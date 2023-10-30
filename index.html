@@ -38,7 +38,7 @@
 
     <div style="display: inline-block; min-width: 696px">
 
-    <p>Size: <select data-bind="options: sizes, optionsText: 'labelEx', value: selectedSize">
+    <p>Size: <select data-bind="options: sizes, optionsText: 'labelEx', optionsValue: 'label', value: selectedSize">
     </select></p>
 
     <p>Align:
@@ -144,7 +144,11 @@ var DemoForm = function () {
     this.sizes = ko.observableArray();
     this.sizes.extend({ rateLimit: { method: "notifyWhenChangesStop" } });
     this.selectedSize = ko.observable();
-    this.selectedSize.subscribe(function(newValue) { if(!me.updatingSizes && newValue) me.lastSelectedSize = newValue.label; });
+    this.selectedSize.subscribe( (newValue) => { 
+        if(!me.updatingSizes && newValue) {
+            me.lastSelectedSize = newValue;
+        }
+    });
     this.lastSelectedSize = null;
     this.updatingSizes = false;
 
@@ -155,7 +159,7 @@ var DemoForm = function () {
     this.imageCode = ko.computed(function() {
         var data = { 
             'align': me.align(), 
-            'selected_size': me.selectedSize() != undefined ? me.selectedSize().label : undefined 
+            'selected_size': me.selectedSize() != undefined ? me.selectedSize() : undefined 
         };
         if(typeof(me.codeTemplate()) !== 'string' || me.codeTemplate().length == 0) {
             if(me.selectedSize() === undefined/* || me.selectedImage == null*/)
@@ -352,8 +356,9 @@ var DemoForm = function () {
                     var code_match = code_re.exec(size.url);
                     size.code = code_match[1];
                     me.sizes.push(size);
-                    if(size.label == me.lastSelectedSize)
+                    if(size.label == me.lastSelectedSize) {
                         me.selectedSize(size);
+                    }
                 });
                 me.updatingSizes = false;
             })
